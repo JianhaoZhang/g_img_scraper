@@ -1,6 +1,2 @@
-Dependencies:
-
-pip install selenium
-pip install requests
-pip install Pillow
-pip install hashlib
+Dependencies: selenium requests Pillow hashlib
+Can be installed via pip
