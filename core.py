@@ -92,4 +92,12 @@ def batch_dl_single_query(query_word, target_dir, driver_dir, number_images, int
 def batch_dl_many_queries():
 	print("in development")
 
-batch_dl_single_query("American_films", "./images", "chromedriver.exe", 50, 0.1)
+#
+#batch dl single query: 
+#Arg1. keyword in underscored format
+#Arg2. target storage directory
+#Arg3. webdriver directory
+#Arg4. number of images to get
+#Arg5. selenium interaction interval
+#
+batch_dl_single_query("cat", "./images", "chromedriver.exe", 50, 0.1)
