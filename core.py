@@ -13,7 +13,7 @@ def scroll(wd, interval):
 
 def get_urls(query_word, wd, number_images, humanity_interval):
 	api = "https://www.google.com/search?safe=off&site=&tbm=isch&source=hp&q={q}&oq={q}&gs_l=img"
-	wd.get(api.format(q = query_word))
+	wd.get(api.format(q = query_word.replace('_',' ')))
 
 	urls = set()
 	start_point = 0
@@ -62,23 +62,34 @@ def image_dl(target_dir, url):
 	try:
 		image_bytes = io.BytesIO(image_raw)
 		image = Image.open(image_bytes).convert("RGB")
+		width, height = image.size
 		name = hashlib.sha1(image_raw).hexdigest() + '.jpg'
 		path = os.path.join(target_dir, name)
-		with open(path, 'wb') as f:
-			image.save(f, "JPEG", quality=100)
+		if width >= 200 and height >= 200:
+			with open(path, 'wb') as f:
+				image.save(f, "JPEG", quality=100)
+		else:
+			print(f"Dropped: {url} - due to low quality")
 	except Exception as e:
 		print(f"Failed: {url} - {e}")
 
 
-def batch_dl_single_query(query_word, target_dir, driver_dir, number_images):
-	target_folder = os.path.join(target_dir, '_'.join(query_word.lower().split(' ')))
+def batch_dl_single_query(query_word, target_dir, driver_dir, number_images, interval):
+	target_folder = os.path.join(target_dir, query_word)
 	if not os.path.exists(target_folder):
 		os.makedirs(target_folder)
 
 	with webdriver.Chrome(executable_path = driver_dir) as wd:
-		url_repo = get_urls(query_word, wd, number_images, 0.5)
+		url_repo = get_urls(query_word, wd, number_images, interval)
 
+		print("Working on batch download...")
+		i = 0
 		for url in url_repo:
+			print(f"{i}/{len(url_repo)}")
 			image_dl(target_folder, url)
+			i+=1
 
-batch_dl_single_query("dog food", "./images", "chromedriver.exe", 5)
+def batch_dl_many_queries():
+	print("in development")
+
+batch_dl_single_query("American_films", "./images", "chromedriver.exe", 50, 0.1)
