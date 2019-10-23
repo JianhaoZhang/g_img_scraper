@@ -4,8 +4,12 @@ import os
 import time
 import requests
 import io
+import random
 from PIL import Image
 import hashlib
+from yago_parse_list import *
+from tokenize import *
+
 
 def scroll(wd, interval):
 	wd.execute_script("window.scrollTo(0, document.body.scrollHeight);")
@@ -17,10 +21,13 @@ def get_urls(query_word, wd, number_images, humanity_interval):
 
 	urls = set()
 	start_point = 0
-	while len(urls) < number_images:
+	trap = 5
+	while len(urls) < number_images and trap > 0:
 		scroll(wd, humanity_interval)
-
-		thumbnails = wd.find_elements_by_css_selector("img.rg_ic")
+		try:
+			thumbnails = wd.find_elements_by_css_selector("img.rg_ic")
+		except Exception:
+			continue
 		num_thumbnails = len(thumbnails)
 		print(f"Located: {num_thumbnails} results")
 
@@ -30,8 +37,10 @@ def get_urls(query_word, wd, number_images, humanity_interval):
 				time.sleep(humanity_interval)
 			except Exception:
 				continue
-
-			previews = wd.find_elements_by_css_selector("img.irc_mi")
+			try:
+				previews = wd.find_elements_by_css_selector("img.irc_mi")
+			except Exception:
+				continue
 			for preview in previews:
 				src = preview.get_attribute('src')
 				if src != None:
@@ -45,8 +54,13 @@ def get_urls(query_word, wd, number_images, humanity_interval):
 			break
 		else:
 			print(f"Collected: {len(urls)} urls, continue..")
-			time.sleep(2)
-			button = wd.find_element_by_css_selector(".ksb")
+			if (len(urls) == 0):
+				trap -= 1
+			time.sleep(1)
+			try:
+				button = wd.find_element_by_css_selector(".ksb")
+			except Exception:
+				continue
 			if button != None:
 				wd.execute_script("document.querySelector('.ksb').click();")
 		start_point = len(thumbnails)
@@ -67,7 +81,7 @@ def image_dl(target_dir, url):
 		path = os.path.join(target_dir, name)
 		if width >= 200 and height >= 200:
 			with open(path, 'wb') as f:
-				image.save(f, "JPEG", quality=100)
+				image.save(f, "JPEG", quality=85)
 		else:
 			print(f"Dropped: {url} - due to low quality")
 	except Exception as e:
@@ -75,22 +89,37 @@ def image_dl(target_dir, url):
 
 
 def batch_dl_single_query(query_word, target_dir, driver_dir, number_images, interval):
-	target_folder = os.path.join(target_dir, query_word)
+	target_folder = os.path.join(target_dir, "results")
 	if not os.path.exists(target_folder):
 		os.makedirs(target_folder)
+
+	options = webdriver.ChromeOptions()
+	options.add_argument("headless")
 
 	with webdriver.Chrome(executable_path = driver_dir) as wd:
 		url_repo = get_urls(query_word, wd, number_images, interval)
 
 		print("Working on batch download...")
-		i = 0
+		i = 1
 		for url in url_repo:
 			print(f"{i}/{len(url_repo)}")
 			image_dl(target_folder, url)
 			i+=1
 
-def batch_dl_many_queries():
-	print("in development")
+def batch_dl_many_queries(entities, keywords):
+	#parse_list(sourcefile,resultfile, entities)
+	l = []
+	with open(keywords, encoding="utf-8") as keywords:
+		for line in keywords:
+			l.append(line)
+	fetch_list = random.sample(l, entities)
+	print(f"{entities} random keywords")
+	i = 1
+	for item in fetch_list:
+		batch_dl_single_query(item, "./images", "chromedriver.exe", 100, 0.1)
+		print(f"{i}-th keyword complete")
+		i+=1
+	print("Finished")
 
 #
 #batch dl single query: 
@@ -100,4 +129,6 @@ def batch_dl_many_queries():
 #Arg4. number of images to get
 #Arg5. selenium interaction interval
 #
-batch_dl_single_query("cat", "./images", "chromedriver.exe", 50, 0.1)
+#batch_dl_single_query("cat", "./images", "chromedriver.exe", 50, 0.1)
+tokenize('taxonomy.csv', 'granular_types.txt', 'tokens.txt')
+batch_dl_many_queries(100, 'tokens.txt')
