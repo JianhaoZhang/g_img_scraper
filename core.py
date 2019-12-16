@@ -35,6 +35,7 @@ def get_urls(query_word, wd, number_images, humanity_interval):
 			try:
 				thumbnail.click()
 				time.sleep(humanity_interval)
+				wd.switch_to.window(wd.window_handles[0])
 			except Exception:
 				continue
 			try:
@@ -69,7 +70,7 @@ def get_urls(query_word, wd, number_images, humanity_interval):
 
 def image_dl(target_dir, url):
 	try:
-		image_raw = requests.get(url).content
+		image_raw = requests.get(url, timeout=30).content
 	except Exception as e:
 		print(f"Could not download {url} - {e}")
 
@@ -82,10 +83,13 @@ def image_dl(target_dir, url):
 		if width >= 200 and height >= 200:
 			with open(path, 'wb') as f:
 				image.save(f, "JPEG", quality=85)
+				return name
 		else:
 			print(f"Dropped: {url} - due to low quality")
+			return "Error"
 	except Exception as e:
 		print(f"Failed: {url} - {e}")
+		return "Error"
 
 
 def batch_dl_single_query(query_word, target_dir, driver_dir, number_images, interval):
@@ -103,7 +107,10 @@ def batch_dl_single_query(query_word, target_dir, driver_dir, number_images, int
 		i = 1
 		for url in url_repo:
 			print(f"{i}/{len(url_repo)}")
-			image_dl(target_folder, url)
+			hashcode = image_dl(target_folder, url)
+			if hashcode != "Error":
+				with open ("reference.csv", "a+", encoding="utf-8") as f:
+					f.write(hashcode + "," + query_word)
 			i+=1
 
 def batch_dl_many_queries(entities, keywords):
@@ -112,6 +119,21 @@ def batch_dl_many_queries(entities, keywords):
 	with open(keywords, encoding="utf-8") as keywords:
 		for line in keywords:
 			l.append(line)
+	fetch_list = random.sample(l, entities)
+	print(f"{entities} random keywords")
+	i = 1
+	for item in fetch_list:
+		batch_dl_single_query(item, "./images", "chromedriver.exe", 100, 0.1)
+		print(f"{i}-th keyword complete")
+		i+=1
+	print("Finished")
+
+def batch_dl_many_queries_google(entities, keywords):
+	#parse_list(sourcefile,resultfile, entities)
+	l = []
+	with open(keywords, encoding="utf-8") as keywords:
+		for line in keywords:
+			l.append(line.split(',')[1])
 	fetch_list = random.sample(l, entities)
 	print(f"{entities} random keywords")
 	i = 1
@@ -131,4 +153,5 @@ def batch_dl_many_queries(entities, keywords):
 #
 #batch_dl_single_query("cat", "./images", "chromedriver.exe", 50, 0.1)
 tokenize('taxonomy.csv', 'granular_types.txt', 'tokens.txt')
-batch_dl_many_queries(100, 'tokens.txt')
+#batch_dl_many_queries(100, 'tokens.txt')
+batch_dl_many_queries_google(1000, 'class-descriptions.csv')
